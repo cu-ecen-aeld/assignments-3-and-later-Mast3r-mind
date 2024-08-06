@@ -16,6 +16,13 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    int syscall_status = system(cmd);
+    if(syscall_status == -1)
+        return false;
+    if(WIFEXITED(syscall_status) && WEXITSTATUS(syscall_status) == 0)
+        return true;
+    else
+        return false;
 
     return true;
 }
@@ -30,7 +37,7 @@ bool do_system(const char *cmd)
 *   The remaining arguments are a list of arguments to pass to the command in execv()
 * @return true if the command @param ... with arguments @param arguments were executed successfully
 *   using the execv() call, false if an error occurred, either in invocation of the
-*   fork, waitpid, or execv() command, or if a non-zero return value was returned
+*   fork, waitpid, or execv()  command, or if a non-zero return value was returned
 *   by the command issued in @param arguments with the specified arguments.
 */
 
@@ -47,7 +54,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 /*
  * TODO:
@@ -58,10 +65,24 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
-
     va_end(args);
 
-    return true;
+    pid_t process_id = fork();
+    if(process_id == -1)
+        return false;
+    else if(process_id == 0) {
+        execv(command[0], command);
+        perror("EXECV");
+        exit(EXIT_FAILURE);
+    } else {
+        int syscall_status;
+        if(waitpid(process_id, &syscall_status, 0) == -1)
+            return false;
+        if(WIFEXITED(syscall_status) && WEXITSTATUS(syscall_status) == 0)
+            return true;
+        else
+            return false;
+    }
 }
 
 /**
@@ -82,7 +103,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 
 /*
@@ -94,6 +115,32 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 */
 
     va_end(args);
-
-    return true;
+    
+    pid_t process_id = fork();
+    if(process_id == -1)
+        return false;
+    else if(process_id == 0) {
+        int file_descriptor = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if(file_descriptor == -1) {
+            perror("OPEN");
+            exit(EXIT_FAILURE);
+        }
+        if(dup2(file_descriptor,STDOUT_FILENO) == -1) {
+            perror("DUP2");
+            close(file_descriptor);
+            exit(EXIT_FAILURE);
+        }
+        close(file_descriptor);
+        execv(command[0], command);
+        perror("EXECV");
+        exit(EXIT_FAILURE);
+    } else {
+        int syscall_status;
+        if(waitpid(process_id, &syscall_status, 0) == -1)
+            return false;
+        if(WIFEXITED(syscall_status) && WEXITSTATUS(syscall_status) == 0)
+            return true;
+        else
+            return false;
+    }
 }
