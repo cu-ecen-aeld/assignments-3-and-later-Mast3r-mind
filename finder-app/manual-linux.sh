@@ -6,7 +6,7 @@ set -e
 set -u
 
 OUTDIR=/tmp/aeld
-KERNEL_DIR=/tmp/aeld/linux-stable
+KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 KERNEL_VERSION=v5.1.10
 BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
@@ -23,18 +23,17 @@ fi
 
 mkdir -p ${OUTDIR}
 
-# Skip the git clone step
-# cd "$OUTDIR"
-# if [ ! -d "${OUTDIR}/linux-stable" ]; then
-#     # Clone only if the repository does not exist.
-#     echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
-#     git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
-# fi
+cd "$OUTDIR"
+if [ ! -d "${OUTDIR}/linux-stable" ]; then
+    # Clone only if the repository does not exist.
+    echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
+    git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
+fi
 
-if [ ! -e ${KERNEL_DIR}/arch/${ARCH}/boot/Image ]; then
-    cd ${KERNEL_DIR}
+if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
+    cd linux-stable
     echo "Checking out version ${KERNEL_VERSION}"
-    # git checkout ${KERNEL_VERSION} # No need to checkout if already downloaded the correct version
+    git checkout ${KERNEL_VERSION}
 
     # Kernel build steps
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig
@@ -43,7 +42,7 @@ if [ ! -e ${KERNEL_DIR}/arch/${ARCH}/boot/Image ]; then
 fi
 
 echo "Adding the Image in outdir"
-cp ${KERNEL_DIR}/arch/${ARCH}/boot/Image ${OUTDIR}
+cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
